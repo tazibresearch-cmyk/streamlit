@@ -4,7 +4,6 @@ import pandas as pd
 from scipy.interpolate import Rbf
 from sklearn.svm import SVR
 import plotly.graph_objects as go
-from datetime import datetime
 
 # ==============================================================================
 # 1. CORE DATASET & METAMODEL ENGINE (CACHED FOR INSTANT SLIDER PERFORMANCE)
@@ -78,8 +77,7 @@ in_day = st.sidebar.slider("Extraction Timeline Delay (Days)", 0.0, 5.0, 2.50, 0
 in_dose = st.sidebar.slider("Gamma Irradiation Intensity (kGy)", 0.0, 5.0, 0.00, 0.1)
 
 # Compute current specific coordinate prediction metrics
-current_eff_raw = evaluate_optimization(np.array([[in_day]]), np.array([[in_dose]]))
-current_eff = float(np.squeeze(current_eff_raw)) # Drops all nested array brackets down to a scalar number
+current_eff = evaluate_optimization(np.array([[in_day]]), np.array([[in_dose]]))[0][0]
 test_coord = np.array([[in_day, in_dose]])
 pred_vals = {f: float(models[f].predict(test_coord)[0]) for f in factors}
 
@@ -93,49 +91,13 @@ with col_metrics:
     st.metric(label="Isothiocyanate Content (ITC)", value=f"{pred_vals['ITC']:.2f} %")
     st.metric(label="Antioxidant Capacity (DPPH)", value=f"{pred_vals['DPPH']:.2f} %")
 
-    st.markdown("#### 🦠 Pathology Profiles")
+    st.markdown("#### 🦠 Predicted Pathology Profiles")
     st.metric(label="Pooled Pathogen MIC Baseline", value=f"{pred_vals['MIC']:.2f} ppm")
 
     st.write("---")
     st.markdown("#### 📊 Process Efficiency Tracker")
-    st.progress(int(current_eff.item()))
-    st.subheader(f"Global Yield Optimization Index: {float(current_eff):.2f} %")
-    
-    st.write("---")
-    
-    # Construct automated report string matrix dynamically based on current slider states
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    report_text = f"""===============================================================
-    CRUCIFEROUS WASTE BIOPROCESSING METAMODEL REPORT       
-===============================================================
-Generated On: {timestamp}
-Dataset Foundation Volume: N=1500 Core Replicates
-
-[INPUT PARAMETERS]
-  --> Extraction Timeline Delay   : {in_day:.2f} Days
-  --> Gamma Irradiation Intensity : {in_dose:.2f} kGy
-
-[PREDICTED PHYTOCHEMICAL YIELDS]
-  • Total Phenolic Content (TPC)  : {pred_vals['TPC']:.2f} µg/mL
-  • Total Flavonoid Content (TFC) : {pred_vals['TFC']:.2f} µg/mL
-  • Isothiocyanate Content (ITC)  : {pred_vals['ITC']:.2f} %
-  • Antioxidant Capacity (DPPH)   : {pred_vals['DPPH']:.2f} %
-
-[PREDICTED PATHOGEN BIOACTIVITY]
-  • Pooled Pathogen MIC Baseline  : {pred_vals['MIC']:.2f} ppm
-
-[PROCESS EFFICIENCY SCORE]
-  ★ Global Yield Optimization Index: {float(current_eff):.2f} %
-===============================================================
-"""
-    
-    # Render native background download action trigger block
-    st.download_button(
-        label="📥 Download Process Report",
-        data=report_text,
-        file_name=f"bioprocess_report_{in_day:.2f}d_{in_dose:.2f}kgy.txt",
-        mime="text/plain"
-    )
+    st.progress(int(current_eff))
+    st.subheader(f"Global Yield Optimization Index: {current_eff:.2f} %")
 
 with col_chart:
     st.markdown("#### 🌐 3D Optimization Surface Model")
@@ -164,7 +126,7 @@ with col_chart:
     fig.add_trace(go.Scatter3d(
         x=[in_day], 
         y=[in_dose], 
-        z=[float(current_eff)],
+        z=[current_eff],
         mode='markers',
         marker=dict(size=8, color='red', symbol='circle', line=dict(color='white', width=2)),
         name='Current Coordinates',
@@ -181,9 +143,9 @@ with col_chart:
             xaxis=dict(range=[0, 5]),
             yaxis=dict(range=[0, 5]),
             zaxis=dict(range=[0, 100]),
-            camera=dict(eye=dict(x=1.6, y=-1.6, z=1.3))
+            camera=dict(eye=dict(x=1.6, y=-1.6, z=1.3)) # Position eye perspective viewing angle
         ),
-        uirevision='constant',
+        uirevision='constant', # Preserve orientation position state choices during slider actions
         showlegend=False,
         height=550
     )
