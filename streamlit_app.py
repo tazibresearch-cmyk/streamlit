@@ -78,7 +78,8 @@ in_day = st.sidebar.slider("Extraction Timeline Delay (Days)", 0.0, 5.0, 2.50, 0
 in_dose = st.sidebar.slider("Gamma Irradiation Intensity (kGy)", 0.0, 5.0, 0.00, 0.1)
 
 # Compute current specific coordinate prediction metrics
-current_eff = evaluate_optimization(np.array([[in_day]]), np.array([[in_dose]]))
+current_eff_raw = evaluate_optimization(np.array([[in_day]]), np.array([[in_dose]]))
+current_eff = float(np.squeeze(current_eff_raw)) # Drops all nested array brackets down to a scalar number
 test_coord = np.array([[in_day, in_dose]])
 pred_vals = {f: float(models[f].predict(test_coord)[0]) for f in factors}
 
