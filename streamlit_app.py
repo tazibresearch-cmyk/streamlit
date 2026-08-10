@@ -97,7 +97,7 @@ with col_metrics:
 
     st.write("---")
     st.markdown("#### 📊 Process Efficiency Tracker")
-    st.progress(int(current_eff))
+    st.progress(int(current_eff.item()))
     st.subheader(f"Global Yield Optimization Index: {float(current_eff):.2f} %")
     
     st.write("---")
