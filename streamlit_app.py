@@ -53,10 +53,11 @@ in_dose = st.sidebar.slider("Gamma Irradiation Intensity (kGy)", 0.0, 5.0, 0.00,
 
 # Compute Real-time Predictions
 test_coord = np.array([[in_day, in_dose]])
-pred_vals = {f: float(models[f].predict(test_coord)) for f in factors}
+# FIXED: Unpacked the array via scalar index selection before converting to float
+pred_vals = {f: float(models[f].predict(test_coord)[0]) for f in factors}
 
 std_scores = [(pred_vals[f] - raw_means[i]) / raw_stds[i] for i, f in enumerate(factors)]
-opt_index = (std_scores[0] + std_scores[1] + std_scores[2] + std_scores[3]) - std_scores[4]
+opt_index = (std_scores + std_scores + std_scores + std_scores) - std_scores
 efficiency = np.clip((opt_index + 4) / 8 * 100, 0.0, 100.0)
 
 # Render Metric Summaries
