@@ -95,11 +95,11 @@ pathogens = [
 st.sidebar.subheader("3D Graph Focus")
 selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", pathogens)
 
-# Generate Current Model Predictions using computation states
+# Generate Current Model Predictions using computation states (Fixed array conversion bug)
 features = np.array([[st.session_state.input_day, st.session_state.input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-    predictions[factor] = float(model.predict(features))
+    predictions[factor] = float(model.predict(features)[0])
 
 # ==============================================================================
 # 3. AUTOMATED OPTIMIZATION ENGINE
@@ -133,7 +133,7 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
         z_scan = trained_models[pathogen_target].predict(scan_features)
         best_idx = np.argmin(z_scan)
         
-    # Fixed dimensional access for 2D coordinate pairs [day, dose]
+    # Fixed dimensional index extraction: [0] for day coordinate, [1] for dose coordinate
     opt_day = float(scan_features[best_idx][0])
     opt_dose = float(scan_features[best_idx][1])
     
