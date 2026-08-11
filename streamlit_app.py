@@ -88,7 +88,8 @@ selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", p
 features = np.array([[input_day, input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-    predictions[factor] = float(model.predict(features))
+    # Fixed: Added [0] to correctly unpack the array scalar element
+    predictions[factor] = float(model.predict(features)[0])
 
 # ==============================================================================
 # 3. REPORT GENERATION ENGINE (SIDEBAR DOWNLOAD)
@@ -96,7 +97,6 @@ for factor, model in trained_models.items():
 st.sidebar.markdown("---")
 st.sidebar.subheader("💾 Export Data")
 
-# Constructing the text report string dynamically
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 report_text = f"""# ANTIMICROBIAL ACTIVITY METAMODEL REPORT
 Generated on: {timestamp}
