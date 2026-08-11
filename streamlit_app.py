@@ -5,8 +5,14 @@ from scipy.interpolate import Rbf
 from sklearn.svm import SVR
 import plotly.graph_objects as go
 
+# Set page configurations
+st.set_page_config(page_title="Antimicrobial Activity Predictor", layout="wide")
+
+st.title("🔬 Antimicrobial Activity Metamodel Predictor")
+st.write("Predicting individual pathogen MIC values based on Gamma Irradiation Dose and Extraction Day.")
+
 # ==============================================================================
-# 1. CORE DATASET & METAMODEL ENGINE (CACHED FOR INSTANT SLIDER PERFORMANCE)
+# 1. CORE DATASET & METAMODEL ENGINE (CACHED)
 # ==============================================================================
 @st.cache_resource
 def initialize_and_train_metamodels():
@@ -30,32 +36,27 @@ def initialize_and_train_metamodels():
     sim_days = np.random.uniform(0.0, 5.0, num_samples)
     sim_doses = np.random.uniform(0.0, 5.0, num_samples)
 
-    # Expanded factor list to account for each individual pathogen
     factors = [
         'TPC', 'ITC', 'TFC', 'DPPH', 
-        'MIC_Escherichia_coli', 
-        'MIC_Listeria_monocytogenes', 
-        'MIC_Pseudomonas_aeruginosa', 
-        'MIC_Penicillium_commune', 
-        'MIC_Aspergillus_flavus'
+        'Escherichia coli', 
+        'Listeria monocytogenes', 
+        'Pseudomonas aeruginosa', 
+        'Penicillium commune', 
+        'Aspergillus flavus'
     ]
     
     expanded_data = {'Day': sim_days, 'Dose': sim_doses}
     trained_models = {}
 
     for idx, f in enumerate(factors):
-        # RBF surface matches indices automatically via idx+2
         rbf_surface = Rbf(
             corrected_anchors[:, 0], 
             corrected_anchors[:, 1], 
             corrected_anchors[:, idx+2], 
             function='thin_plate'
         )
-        
-        # Generator for simulation space
         expanded_data[f] = rbf_surface(sim_days, sim_doses)
         
-        # Meta-modeling engine via Support Vector Regression
         X = np.column_stack((sim_days, sim_doses))
         y = expanded_data[f]
         
@@ -64,3 +65,61 @@ def initialize_and_train_metamodels():
         trained_models[f] = svr_model
 
     return trained_models, pd.DataFrame(expanded_data)
+
+# Initialize models
+trained_models, _ = initialize_and_train_metamodels()
+
+# ==============================================================================
+# 2. USER INTERFACE (SIDEBAR CONTROLS)
+# ==============================================================================
+st.sidebar.header("🎛️ Input Parameters")
+input_day = st.sidebar.slider("Extraction Day", min_value=0.0, max_value=5.0, value=3.0, step=0.1)
+input_dose = st.sidebar.slider("Gamma Dose (kGy)", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
+
+# Generate Predictions
+features = np.array([[input_day, input_dose]])
+predictions = {}
+for factor, model in trained_models.items():
+    predictions[factor] = float(model.predict(features)[0])
+
+# ==============================================================================
+# 3. DISPLAY RESULTS
+# ==============================================================================
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    st.subheader("📊 Phytochemical Metrics")
+    st.metric("TPC", f"{predictions['TPC']:.2f}")
+    st.metric("ITC", f"{predictions['ITC']:.2f}")
+    st.metric("TFC", f"{predictions['TFC']:.2f}")
+    st.metric("DPPH (%)", f"{predictions['DPPH']:.2f}")
+
+with col2:
+    st.subheader("🧫 Predicted MIC Values (ppm)")
+    st.write("Lower value indicates stronger antimicrobial activity.")
+    
+    pathogens = [
+        'Escherichia coli', 'Listeria monocytogenes', 
+        'Pseudomonas aeruginosa', 'Penicillium commune', 'Aspergillus flavus'
+    ]
+    
+    pathogen_mic = {p: predictions[p] for p in pathogens}
+    
+    # Create visual bar chart for the pathogens
+    fig = go.Figure(go.Bar(
+        x=list(pathogen_mic.values()),
+        y=list(pathogen_mic.keys()),
+        orientation='h',
+        marker=dict(color='crimson')
+    ))
+    fig.update_layout(
+        xaxis_title="MIC Value (ppm)",
+        yaxis_autorange="reversed",
+        margin=dict(l=20, r=20, t=20, b=20),
+        height=300
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Display as a table
+    df_mic = pd.DataFrame(list(pathogen_mic.items()), columns=['Pathogen / Strain', 'Predicted MIC (ppm)'])
+    st.dataframe(df_mic, hide_index=True)
