@@ -17,7 +17,6 @@ st.write("Predicting phytochemical properties and individual pathogen MIC values
 @st.cache_resource
 def initialize_and_train_metamodels():
     # Input exact experimental anchors with individual pathogen MICs
-    # Structure: [Day, Dose, TPC, ITC, TFC, DPPH, E.coli, Listeria, Pseudomonas, Penicillium, Aspergillus]
     corrected_anchors = np.array([
         [0.0, 0.0, 340.00, 19.65, 335.00, 37.89, 625.0, 1250.0, 625.0, 312.5, 625.0],
         [1.0, 1.0, 162.89, 26.07, 123.18, 76.61, 625.0, 625.0,  625.0, 625.0, 156.25],
@@ -76,54 +75,80 @@ st.sidebar.header("🎛️ Input Parameters")
 input_day = st.sidebar.slider("Extraction Day", min_value=0.0, max_value=5.0, value=3.0, step=0.1)
 input_dose = st.sidebar.slider("Gamma Dose (kGy)", min_value=0.0, max_value=5.0, value=1.0, step=0.1)
 
+pathogens = [
+    'Escherichia coli', 'Listeria monocytogenes', 
+    'Pseudomonas aeruginosa', 'Penicillium commune', 'Aspergillus flavus'
+]
+
+st.sidebar.subheader("3D Graph Focus")
+selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", pathogens)
+
 # Generate Predictions
 features = np.array([[input_day, input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-    # Fixed: Extracted [0] value from array output to prevent conversion crashes
     predictions[factor] = float(model.predict(features)[0])
 
 # ==============================================================================
 # 3. DISPLAY RESULTS
 # ==============================================================================
-# Fixed: Added '2' to split page into exactly two column sections
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("📊 Phytochemical Metrics")
-    
-    # Updated metrics with full names and requested units
     st.metric("Total Phenolic Content (TPC)", f"{predictions['TPC']:.2f} ug/mL")
     st.metric("Total Flavonoid Content (TFC)", f"{predictions['TFC']:.2f} ug/mL")
     st.metric("Isothiocyanate Content (ITC)", f"{predictions['ITC']:.2f} %")
     st.metric("DPPH Radical Scavenging Activity", f"{predictions['DPPH']:.2f} %")
-
-with col2:
-    st.subheader("🧫 Predicted MIC Values (ppm)")
-    st.write("Lower value indicates stronger antimicrobial activity.")
     
-    pathogens = [
-        'Escherichia coli', 'Listeria monocytogenes', 
-        'Pseudomonas aeruginosa', 'Penicillium commune', 'Aspergillus flavus'
-    ]
-    
+    st.write("---")
+    st.subheader("📋 Live Numeric Predictions")
     pathogen_mic = {p: predictions[p] for p in pathogens}
-    
-    # Create visual bar chart with italicized scientific labels
-    fig = go.Figure(go.Bar(
-        x=list(pathogen_mic.values()),
-        y=[f"<i>{p}</i>" for p in pathogen_mic.keys()],
-        orientation='h',
-        marker=dict(color='crimson')
-    ))
-    fig.update_layout(
-        xaxis_title="MIC Value (ppm)",
-        yaxis_autorange="reversed",
-        margin=dict(l=20, r=20, t=20, b=20),
-        height=300
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Display as a clean data table
     df_mic = pd.DataFrame(list(pathogen_mic.items()), columns=['Microbial Strain', 'Predicted MIC (ppm)'])
     st.dataframe(df_mic, hide_index=True)
+
+with col2:
+    st.subheader(f"🌐 3D Response Surface: {selected_pathogen}")
+    st.write("Rotate the 3D plot to view the interaction trend. The red sphere marks your active slider selection.")
+    
+    # Generate 3D grid data for response surface
+    x_line = np.linspace(0, 5, 30)
+    y_line = np.linspace(0, 5, 30)
+    X_grid, Y_grid = np.meshgrid(x_line, y_line)
+    
+    # Flatten grid for model prediction
+    grid_features = np.column_stack((X_grid.ravel(), Y_grid.ravel()))
+    Z_grid = trained_models[selected_pathogen].predict(grid_features).reshape(X_grid.shape)
+    
+    # Create 3D Surface
+    fig_3d = go.Figure()
+    
+    # Base Surface
+    fig_3d.add_trace(go.Surface(
+        x=X_grid, y=Y_grid, z=Z_grid, 
+        colorscale='Viridis', 
+        colorbar_title="MIC (ppm)",
+        hovertemplate="Day: %{x}<br>Dose: %{y}<br>MIC: %{z:.1f} ppm<extra></extra>"
+    ))
+    
+    # Current Value Marker Sphere
+    fig_3d.add_trace(go.Scatter3d(
+        x=[input_day], y=[input_dose], z=[predictions[selected_pathogen]],
+        mode='markers',
+        marker=dict(size=8, color='red', symbol='circle', line=dict(color='white', width=2)),
+        name='Current Setting',
+        hovertemplate="Active Selection<extra></extra>"
+    ))
+    
+    fig_3d.update_layout(
+        scene=dict(
+            xaxis_title='Extraction Day',
+            yaxis_title='Gamma Dose (kGy)',
+            zaxis_title='MIC (ppm)'
+        ),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=450,
+        showlegend=False
+    )
+    
+    st.plotly_chart(fig_3d, use_container_width=True)
