@@ -80,20 +80,21 @@ input_dose = st.sidebar.slider("Gamma Dose (kGy)", min_value=0.0, max_value=5.0,
 features = np.array([[input_day, input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-     # Highlighted fix: added [0] to extract the scalar value from the array
+    # Fixed: Extracted [0] value from array output to prevent conversion crashes
     predictions[factor] = float(model.predict(features)[0])
 
 # ==============================================================================
 # 3. DISPLAY RESULTS
 # ==============================================================================
-col1, col2 = st.columns()
+# Fixed: Added '2' to split page into exactly two column sections
+col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("📊 Phytochemical Metrics")
     
-    # Updated metrics with full descriptive titles and precise units
-    st.metric("Total Phenolic Content (TPC)", f"{predictions['TPC']:.2f} µg/mL")
-    st.metric("Total Flavonoid Content (TFC)", f"{predictions['TFC']:.2f} µg/mL")
+    # Updated metrics with full names and requested units
+    st.metric("Total Phenolic Content (TPC)", f"{predictions['TPC']:.2f} ug/mL")
+    st.metric("Total Flavonoid Content (TFC)", f"{predictions['TFC']:.2f} ug/mL")
     st.metric("Isothiocyanate Content (ITC)", f"{predictions['ITC']:.2f} %")
     st.metric("DPPH Radical Scavenging Activity", f"{predictions['DPPH']:.2f} %")
 
@@ -108,7 +109,7 @@ with col2:
     
     pathogen_mic = {p: predictions[p] for p in pathogens}
     
-    # Create visual bar chart for the pathogens with italicized scientific labels
+    # Create visual bar chart with italicized scientific labels
     fig = go.Figure(go.Bar(
         x=list(pathogen_mic.values()),
         y=[f"<i>{p}</i>" for p in pathogen_mic.keys()],
