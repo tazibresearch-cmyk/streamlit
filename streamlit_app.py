@@ -112,13 +112,11 @@ target_goal = st.sidebar.selectbox(
 )
 
 if st.sidebar.button("🚀 Find Optimal Settings"):
-    # Generate numerical scan grid
     scan_days = np.linspace(0.0, 5.0, 100)
     scan_doses = np.linspace(0.0, 10.0, 100)
     X_scan, Y_scan = np.meshgrid(scan_days, scan_doses)
     scan_features = np.column_stack((X_scan.ravel(), Y_scan.ravel()))
     
-    # Run targeted mathematical optimization scan
     if target_goal == "Maximize TPC":
         z_scan = trained_models['TPC'].predict(scan_features)
         best_idx = np.argmax(z_scan)
@@ -132,10 +130,9 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
         z_scan = trained_models['DPPH'].predict(scan_features)
         best_idx = np.argmax(z_scan)
     else:
-        # Extracts specific chosen pathogen from string
         pathogen_target = target_goal.replace("Minimize MIC: ", "")
         z_scan = trained_models[pathogen_target].predict(scan_features)
-        best_idx = np.argmin(z_scan) # Best performance for MIC means minimizing the value
+        best_idx = np.argmin(z_scan)
         
     opt_day = float(scan_features[best_idx][0])
     opt_dose = float(scan_features[best_idx][1])
@@ -148,11 +145,9 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
     * **Predicted Value:** {opt_val:.2f}
     """)
     
-    # Updates interactive visualization state parameters to display ideal location automatically
     input_day = opt_day
     input_dose = opt_dose
     
-    # Re-calculate parameters for active selection marker positioning
     features = np.array([[input_day, input_dose]])
     for factor, model in trained_models.items():
         predictions[factor] = float(model.predict(features))
@@ -231,5 +226,17 @@ with col2:
         colorbar_title="MIC (ppm)"
     ))
     
-    # Current Value Marker Sphere
+    # Cleaned Marker Setup to guarantee all parenthesis syntax matches perfectly
+    sphere_marker_style = dict(
+        size=8, 
+        color='red', 
+        symbol='circle', 
+        line=dict(color='white', width=2)
+    )
+    
+    # Current Value Marker Sphere Trace
     fig_3d.add_trace(go.Scatter3d(
+        x=[input_day], 
+        y=[input_dose], 
+        z=[predictions[selected_pathogen]],
+        mode='markers',
