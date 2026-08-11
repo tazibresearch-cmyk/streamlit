@@ -65,20 +65,27 @@ def initialize_and_train_metamodels():
 
 trained_models, _ = initialize_and_train_metamodels()
 
-# Initialize Session State Keys for coordinates
+# Initialize computational variables in state separate from direct slider keys
 if "input_day" not in st.session_state:
     st.session_state.input_day = 3.0
 if "input_dose" not in st.session_state:
     st.session_state.input_dose = 1.0
+
+# Callback functions to smoothly pass slider movement back into data state
+def update_day():
+    st.session_state.input_day = st.session_state.temp_day
+
+def update_dose():
+    st.session_state.input_dose = st.session_state.temp_dose
 
 # ==============================================================================
 # 2. USER INTERFACE (SIDEBAR CONTROLS)
 # ==============================================================================
 st.sidebar.header("🎛️ Input Parameters")
 
-# Removed the form wrapper to allow programmatic state mutation across widgets
-input_day = st.sidebar.slider("Extraction Day", min_value=0.0, max_value=5.0, key="input_day", step=0.1)
-input_dose = st.sidebar.slider("Gamma Dose (kGy)", min_value=0.0, max_value=10.0, key="input_dose", step=0.1)
+# Sliders now write to temporary keys and trigger an on_change data sync
+st.sidebar.slider("Extraction Day", min_value=0.0, max_value=5.0, value=st.session_state.input_day, key="temp_day", step=0.1, on_change=update_day)
+st.sidebar.slider("Gamma Dose (kGy)", min_value=0.0, max_value=10.0, value=st.session_state.input_dose, key="temp_dose", step=0.1, on_change=update_dose)
 
 pathogens = [
     'Escherichia coli', 'Listeria monocytogenes', 
@@ -88,7 +95,7 @@ pathogens = [
 st.sidebar.subheader("3D Graph Focus")
 selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", pathogens)
 
-# Generate Current Model Predictions (Fixed indexing extraction bug)
+# Generate Current Model Predictions using computation states
 features = np.array([[st.session_state.input_day, st.session_state.input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
@@ -126,9 +133,11 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
         z_scan = trained_models[pathogen_target].predict(scan_features)
         best_idx = np.argmin(z_scan)
         
-    # Overwrite state parameters safely (No longer inside a restricted Form block)
+    # Safely assign optimized tracking coordinates
     st.session_state.input_day = float(scan_features[best_idx][0])
     st.session_state.input_dose = float(scan_features[best_idx][1])
+    
+    # Force a rerun so the sliders render at their new optimized positions on next layout execution
     st.rerun()
 
 # ==============================================================================
