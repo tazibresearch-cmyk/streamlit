@@ -20,22 +20,15 @@ def initialize_and_train_metamodels():
     # Input exact experimental anchors extended to 10.0 kGy based on literature trends
     # Structure: [Day, Dose, TPC, ITC, TFC, DPPH, E.coli, Listeria, Pseudomonas, Penicillium, Aspergillus]
     corrected_anchors = np.array([
-        # Baseline anchors (Day 0, Dose 0 corrected to 320-340 bracket)
         [0.0, 0.0,  340.00, 19.65, 335.00, 37.89, 625.0, 1250.0, 625.0, 312.5, 625.0],
-        
-        # Day 1 processing trajectory
         [1.0, 1.0,  162.89, 26.07, 123.18, 76.61, 625.0, 625.0,  625.0, 625.0, 156.25],
         [1.0, 2.5,  205.90, 11.07,  47.73, 69.48, 625.0, 625.0,  625.0, 625.0, 625.0],
         [1.0, 5.0,   92.50,  2.39,  95.90, 55.03, 625.0, 1250.0, 625.0, 625.0, 625.0],
         [1.0, 10.0,  55.00,  1.10,  70.00, 42.00, 625.0, 1250.0, 625.0, 625.0, 625.0], 
-        
-        # Day 3 processing trajectory
         [3.0, 1.0,  296.09, 21.94, 122.80, 87.98, 312.5, 625.0,  312.5, 625.0, 312.5],
         [3.0, 2.5,  320.77, 10.00,  39.03, 66.26, 625.0, 1250.0, 312.5, 625.0, 625.0],
         [3.0, 5.0,  304.00, 27.99, 261.02, 54.81, 625.0, 625.0,  312.5, 625.0, 625.0],
         [3.0, 10.0, 275.00, 24.50, 230.00, 50.00, 625.0, 625.0,  312.5, 625.0, 625.0], 
-        
-        # Day 5 processing trajectory
         [5.0, 1.0,   92.50, 18.52, 362.33, 79.26, 625.0, 1250.0, 1250.0, 625.0, 625.0],
         [5.0, 2.5,  302.00, 13.55, 401.17, 80.73, 625.0, 1250.0, 1250.0, 625.0, 625.0],
         [5.0, 5.0,  353.15, 28.00, 333.70, 87.78, 625.0, 625.0,  625.0,  625.0, 312.5],
@@ -49,11 +42,8 @@ def initialize_and_train_metamodels():
 
     factors = [
         'TPC', 'ITC', 'TFC', 'DPPH', 
-        'Escherichia coli', 
-        'Listeria monocytogenes', 
-        'Pseudomonas aeruginosa', 
-        'Penicillium commune', 
-        'Aspergillus flavus'
+        'Escherichia coli', 'Listeria monocytogenes', 
+        'Pseudomonas aeruginosa', 'Penicillium commune', 'Aspergillus flavus'
     ]
     
     expanded_data = {'Day': sim_days, 'Dose': sim_doses}
@@ -61,9 +51,7 @@ def initialize_and_train_metamodels():
 
     for idx, f in enumerate(factors):
         rbf_surface = Rbf(
-            corrected_anchors[:, 0], 
-            corrected_anchors[:, 1], 
-            corrected_anchors[:, idx+2], 
+            corrected_anchors[:, 0], corrected_anchors[:, 1], corrected_anchors[:, idx+2], 
             function='thin_plate'
         )
         expanded_data[f] = rbf_surface(sim_days, sim_doses)
@@ -99,7 +87,7 @@ selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", p
 features = np.array([[input_day, input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-    predictions[factor] = float(model.predict(features))
+    predictions[factor] = float(model.predict(features)[0])
 
 # ==============================================================================
 # 3. AUTOMATED OPTIMIZATION ENGINE
@@ -112,8 +100,8 @@ target_goal = st.sidebar.selectbox(
 )
 
 if st.sidebar.button("🚀 Find Optimal Settings"):
-    scan_days = np.linspace(0.0, 5.0, 100)
-    scan_doses = np.linspace(0.0, 10.0, 100)
+    scan_days = np.linspace(0.0, 5.0, 50)
+    scan_doses = np.linspace(0.0, 10.0, 50)
     X_scan, Y_scan = np.meshgrid(scan_days, scan_doses)
     scan_features = np.column_stack((X_scan.ravel(), Y_scan.ravel()))
     
@@ -134,23 +122,16 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
         z_scan = trained_models[pathogen_target].predict(scan_features)
         best_idx = np.argmin(z_scan)
         
-    opt_day = float(scan_features[best_idx][0])
-    opt_dose = float(scan_features[best_idx][1])
-    opt_val = float(z_scan[best_idx])
+    # Unpack scan coordinates explicitly to prevent errors
+    input_day = float(scan_features[best_idx][0])
+    input_dose = float(scan_features[best_idx][1])
     
-    st.sidebar.success(f"""
-    **Optimal Conditions Found:**
-    * **Extraction Day:** {opt_day:.1f} days
-    * **Gamma Dose:** {opt_dose:.1f} kGy
-    * **Predicted Value:** {opt_val:.2f}
-    """)
-    
-    input_day = opt_day
-    input_dose = opt_dose
-    
+    # Re-calculate metrics matching the optimized position coordinates
     features = np.array([[input_day, input_dose]])
     for factor, model in trained_models.items():
-        predictions[factor] = float(model.predict(features))
+        predictions[factor] = float(model.predict(features)[0])
+        
+    st.sidebar.success(f"Optimized Position Applied:\nDay: {input_day:.1f} | Dose: {input_dose:.1f} kGy")
 
 # ==============================================================================
 # 4. REPORT GENERATION ENGINE (SIDEBAR DOWNLOAD)
@@ -159,7 +140,7 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("💾 Export Data")
 
 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-report_text = f"""# ANTIMICROBIAL ACTIVITY METAMODEL REPORT (HIGH-DOSE SPECTRUM)
+report_text = f"""# ANTIMICROBIAL ACTIVITY METAMODEL REPORT
 Generated on: {timestamp}
 
 ## 1. Input Processing Parameters
@@ -183,7 +164,7 @@ Generated on: {timestamp}
 st.sidebar.download_button(
     label="📥 Download Summary Report",
     data=report_text,
-    file_name=f"high_dose_mic_report_{input_day}d_{input_dose}kgy.txt",
+    file_name=f"mic_metamodel_report_{input_day}d_{input_dose}kgy.txt",
     mime="text/markdown"
 )
 
@@ -207,11 +188,11 @@ with col1:
 
 with col2:
     st.subheader(f"🌐 3D Response Surface: {selected_pathogen}")
-    st.write("Rotate the 3D plot to view the trend. The red sphere automatically jumps to your active/optimized selection.")
+    st.write("Rotate the 3D plot to view the trend. The red sphere marks your selection.")
     
     # Generate 3D grid data for response surface over expanded 10kGy dose range
-    x_line = np.linspace(0, 5, 30)
-    y_line = np.linspace(0, 10, 30) 
+    x_line = np.linspace(0, 5, 25)
+    y_line = np.linspace(0, 10, 25) 
     X_grid, Y_grid = np.meshgrid(x_line, y_line)
     
     grid_features = np.column_stack((X_grid.ravel(), Y_grid.ravel()))
@@ -220,23 +201,16 @@ with col2:
     fig_3d = go.Figure()
     
     # Base Surface
-    fig_3d.add_trace(go.Surface(
-        x=X_grid, y=Y_grid, z=Z_grid, 
-        colorscale='Viridis', 
-        colorbar_title="MIC (ppm)"
-    ))
+    fig_3d.add_trace(go.Surface(x=X_grid, y=Y_grid, z=Z_grid, colorscale='Viridis', colorbar_title="MIC (ppm)"))
     
-    # Cleaned Marker Setup to guarantee all parenthesis syntax matches perfectly
-    sphere_marker_style = dict(
-        size=8, 
-        color='red', 
-        symbol='circle', 
-        line=dict(color='white', width=2)
+    # Current Value Marker Sphere Trace (Flattened syntax to guarantee no unclosed parentheses)
+    fig_3d.add_trace(go.Scatter3d(x=[input_day], y=[input_dose], z=[predictions[selected_pathogen]], mode='markers', marker=dict(size=8, color='red', line=dict(color='white', width=2))))
+    
+    fig_3d.update_layout(
+        scene=dict(xaxis_title='Extraction Day', yaxis_title='Gamma Dose (kGy)', zaxis_title='MIC (ppm)'),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=450,
+        showlegend=False
     )
     
-    # Current Value Marker Sphere Trace
-    fig_3d.add_trace(go.Scatter3d(
-        x=[input_day], 
-        y=[input_dose], 
-        z=[predictions[selected_pathogen]],
-        mode='markers',
+    st.plotly_chart(fig_3d, use_container_width=True)
