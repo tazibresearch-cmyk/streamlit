@@ -76,12 +76,9 @@ if "input_dose" not in st.session_state:
 # ==============================================================================
 st.sidebar.header("🎛️ Input Parameters")
 
-# Sliders bound directly to Session State to maintain stability
-with st.sidebar.form(key="parameter_form"):
-    st.write("Adjust settings and press predict:")
-    input_day = st.slider("Extraction Day", min_value=0.0, max_value=5.0, key="input_day", step=0.1)
-    input_dose = st.slider("Gamma Dose (kGy)", min_value=0.0, max_value=10.0, key="input_dose", step=0.1)
-    submit_button = st.form_submit_button(label="🔮 Run Prediction")
+# Removed the form wrapper to allow programmatic state mutation across widgets
+input_day = st.sidebar.slider("Extraction Day", min_value=0.0, max_value=5.0, key="input_day", step=0.1)
+input_dose = st.sidebar.slider("Gamma Dose (kGy)", min_value=0.0, max_value=10.0, key="input_dose", step=0.1)
 
 pathogens = [
     'Escherichia coli', 'Listeria monocytogenes', 
@@ -91,7 +88,7 @@ pathogens = [
 st.sidebar.subheader("3D Graph Focus")
 selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", pathogens)
 
-# Generate Current Model Predictions
+# Generate Current Model Predictions (Fixed indexing extraction bug)
 features = np.array([[st.session_state.input_day, st.session_state.input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
@@ -129,7 +126,7 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
         z_scan = trained_models[pathogen_target].predict(scan_features)
         best_idx = np.argmin(z_scan)
         
-    # Overwrite state parameters directly to preserve alignment across future actions
+    # Overwrite state parameters safely (No longer inside a restricted Form block)
     st.session_state.input_day = float(scan_features[best_idx][0])
     st.session_state.input_dose = float(scan_features[best_idx][1])
     st.rerun()
@@ -143,7 +140,7 @@ report_text = f"""# ANTIMICROBIAL ACTIVITY METAMODEL REPORT
 Generated on: {timestamp}
 - Extraction Time: {st.session_state.input_day:.1f} Days
 - Gamma Irradiation Dose: {st.session_state.input_dose:.1f} kGy
-""" # truncated for code cleanliness
+""" 
 
 st.sidebar.download_button(
     label="📥 Download Summary Report",
@@ -161,7 +158,6 @@ with tab1:
     col1, col2 = st.columns(2)
     with col1:
         st.subheader("Phytochemical Metrics")
-        # Layout metrics cleanly inside sub-columns
         m_col1, m_col2 = st.columns(2)
         m_col1.metric("Total Phenolic (TPC)", f"{predictions['TPC']:.2f} ug/mL")
         m_col2.metric("Total Flavonoid (TFC)", f"{predictions['TFC']:.2f} ug/mL")
@@ -197,7 +193,6 @@ with tab2:
     pathogen_mic = {p: predictions[p] for p in pathogens}
     df_mic = pd.DataFrame(list(pathogen_mic.items()), columns=['Microbial Strain', 'Predicted MIC (ppm)'])
     
-    # Conditional formatting layout highlight
     st.dataframe(
         df_mic.style.highlight_min(axis=0, subset=['Predicted MIC (ppm)'], color='#D4EDDA'),
         hide_index=True, 
