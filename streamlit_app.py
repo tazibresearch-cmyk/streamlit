@@ -133,14 +133,13 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
         z_scan = trained_models[pathogen_target].predict(scan_features)
         best_idx = np.argmin(z_scan)
         
-    # Safely assign optimized tracking coordinates
+    # Fixed dimensional access for 2D coordinate pairs [day, dose]
     opt_day = float(scan_features[best_idx][0])
     opt_dose = float(scan_features[best_idx][1])
     
     st.session_state.input_day = opt_day
     st.session_state.input_dose = opt_dose
     
-    # Store optimization results in session state to display on the main page after rerun
     st.session_state.last_optimization = {
         "objective": target_goal,
         "day": opt_day,
@@ -157,7 +156,6 @@ if "last_optimization" in st.session_state:
         f"🏆 **Best Extraction Time:** {opt_info['day']:.2f} Days  \n"
         f"⚡ **Best Gamma Dose:** {opt_info['dose']:.2f} kGy"
     )
-    # Clear the temporary message state so it doesn't stay permanently if sliders move again
     del st.session_state.last_optimization
 
 # ==============================================================================
@@ -223,3 +221,7 @@ with tab2:
     df_mic = pd.DataFrame(list(pathogen_mic.items()), columns=['Microbial Strain', 'Predicted MIC (ppm)'])
     
     st.dataframe(
+        df_mic.style.highlight_min(axis=0, subset=['Predicted MIC (ppm)'], color='#D4EDDA'),
+        hide_index=True, 
+        use_container_width=True
+    )
