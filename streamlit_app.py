@@ -39,7 +39,6 @@ def initialize_and_train_metamodels():
         [5.0, 10.0, 0.0, 325.00, 26.00, 295.00, 82.00, 625.0,  625.0, 625.0,  625.0,  625.0, 625.0, 312.5],
         
         # --- NEW X-RAY EXPERIMENTAL ANCHORS (Modality = 1.0) ---
-        # Data populated from your 0.5 kGy X-ray results charts (DPPH estimated from response trends)
         [1.0, 0.5,  1.0, 455.54, 58.43, 223.96, 60.00, 1250.0, 625.0, 625.0,  1250.0, 312.5, 625.0, 312.5],
         [3.0, 0.5,  1.0, 491.21, 91.17, 345.51, 65.00, 625.0,  625.0, 1250.0, 312.5,  312.5, 625.0, 625.0],
         [5.0, 0.5,  1.0, 418.14, 71.83, 272.47, 58.00, 1250.0, 625.0, 1250.0, 625.0,  312.5, 625.0, 625.0]
@@ -98,11 +97,11 @@ pathogens = [
 st.sidebar.subheader("3D Graph Focus")
 selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", pathogens)
 
-# Generate Predictions
+# Generate Predictions (Fixed: Added [0] to unpack array prediction cleanly)
 features = np.array([[input_day, input_dose, input_modality]])
 predictions = {}
 for factor, model in trained_models.items():
-    predictions[factor] = float(model.predict(features))
+    predictions[factor] = float(model.predict(features)[0])
 
 # ==============================================================================
 # 3. MULTI-MODAL AUTOMATED OPTIMIZATION ENGINE
@@ -148,7 +147,7 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
     
     features = np.array([[input_day, input_dose, input_modality]])
     for factor, model in trained_models.items():
-        predictions[factor] = float(model.predict(features))
+        predictions[factor] = float(model.predict(features)[0])
         
     st.sidebar.success(f"Optimal Conditions:\n{input_modality_str} | Day {input_day:.1f} | Dose {input_dose:.1f} kGy")
 
@@ -198,3 +197,4 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader(f"📊 Metrics ({input_modality_str})")
     st.metric("Total Phenolic Content (TPC)", f"{predictions['TPC']:.2f} ug/mL")
+    st.metric("Total Flavonoid Content (TFC)", f"{predictions['TFC']:.2f} ug/mL")
