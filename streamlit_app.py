@@ -9,7 +9,7 @@ from datetime import datetime
 # Set page configurations
 st.set_page_config(page_title="Antimicrobial Activity Predictor", layout="wide")
 
-st.title("🔬 High-Dose Antimicrobial Activity Metamodel Predictor")
+st.title("🥦 Empirical-Literature Hybrid Metamodel for Phytochemical and Antimicrobial Prediction in Broccoli Extract")
 st.write("Predicting phytochemical properties and individual pathogen MIC values based on Gamma Irradiation Dose and Extraction Day.")
 
 # ==============================================================================
