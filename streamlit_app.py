@@ -99,7 +99,7 @@ selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", p
 features = np.array([[st.session_state.input_day, st.session_state.input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-    predictions[factor] = float(model.predict(features)[0])
+    predictions[factor] = float(model.predict(features))
 
 # ==============================================================================
 # 3. AUTOMATED OPTIMIZATION ENGINE
@@ -134,11 +134,31 @@ if st.sidebar.button("🚀 Find Optimal Settings"):
         best_idx = np.argmin(z_scan)
         
     # Safely assign optimized tracking coordinates
-    st.session_state.input_day = float(scan_features[best_idx][0])
-    st.session_state.input_dose = float(scan_features[best_idx][1])
+    opt_day = float(scan_features[best_idx][0])
+    opt_dose = float(scan_features[best_idx][1])
     
-    # Force a rerun so the sliders render at their new optimized positions on next layout execution
+    st.session_state.input_day = opt_day
+    st.session_state.input_dose = opt_dose
+    
+    # Store optimization results in session state to display on the main page after rerun
+    st.session_state.last_optimization = {
+        "objective": target_goal,
+        "day": opt_day,
+        "dose": opt_dose
+    }
+    
     st.rerun()
+
+# Display optimization result banner on top of the main window if it exists
+if "last_optimization" in st.session_state:
+    opt_info = st.session_state.last_optimization
+    st.success(
+        f"🎯 **Optimization Successful for {opt_info['objective']}!**  \n"
+        f"🏆 **Best Extraction Time:** {opt_info['day']:.2f} Days  \n"
+        f"⚡ **Best Gamma Dose:** {opt_info['dose']:.2f} kGy"
+    )
+    # Clear the temporary message state so it doesn't stay permanently if sliders move again
+    del st.session_state.last_optimization
 
 # ==============================================================================
 # 4. REPORT GENERATION ENGINE
@@ -203,7 +223,3 @@ with tab2:
     df_mic = pd.DataFrame(list(pathogen_mic.items()), columns=['Microbial Strain', 'Predicted MIC (ppm)'])
     
     st.dataframe(
-        df_mic.style.highlight_min(axis=0, subset=['Predicted MIC (ppm)'], color='#D4EDDA'),
-        hide_index=True, 
-        use_container_width=True
-    )
