@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.interpolate import Rbf
 from sklearn.svm import SVR
 import plotly.graph_objects as go
+from datetime import datetime
 
 # Set page configurations
 st.set_page_config(page_title="Antimicrobial Activity Predictor", layout="wide")
@@ -87,10 +88,49 @@ selected_pathogen = st.sidebar.selectbox("Select Target Pathogen for 3D View", p
 features = np.array([[input_day, input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-    predictions[factor] = float(model.predict(features)[0])
+    predictions[factor] = float(model.predict(features))
 
 # ==============================================================================
-# 3. DISPLAY RESULTS
+# 3. REPORT GENERATION ENGINE (SIDEBAR DOWNLOAD)
+# ==============================================================================
+st.sidebar.markdown("---")
+st.sidebar.subheader("💾 Export Data")
+
+# Constructing the text report string dynamically
+timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+report_text = f"""# ANTIMICROBIAL ACTIVITY METAMODEL REPORT
+Generated on: {timestamp}
+
+## 1. Input Processing Parameters
+- Extraction Time: {input_day:.1f} Days
+- Gamma Irradiation Dose: {input_dose:.1f} kGy
+
+## 2. Predicted Phytochemical Properties
+- Total Phenolic Content (TPC): {predictions['TPC']:.2f} ug/mL
+- Total Flavonoid Content (TFC): {predictions['TFC']:.2f} ug/mL
+- Isothiocyanate Content (ITC): {predictions['ITC']:.2f} %
+- DPPH Radical Scavenging Activity: {predictions['DPPH']:.2f} %
+
+## 3. Predicted Minimum Inhibitory Concentrations (MIC)
+- Escherichia coli: {predictions['Escherichia coli']:.2f} ppm
+- Listeria monocytogenes: {predictions['Listeria monocytogenes']:.2f} ppm
+- Pseudomonas aeruginosa: {predictions['Pseudomonas aeruginosa']:.2f} ppm
+- Penicillium commune: {predictions['Penicillium commune']:.2f} ppm
+- Aspergillus flavus: {predictions['Aspergillus flavus']:.2f} ppm
+
+---
+Note: These numbers are calculated using a thin-plate spline RBF simulation matched via a Support Vector Regression (SVR) Metamodel.
+"""
+
+st.sidebar.download_button(
+    label="📥 Download Summary Report",
+    data=report_text,
+    file_name=f"mic_metamodel_report_{input_day}d_{input_dose}kgy.txt",
+    mime="text/markdown"
+)
+
+# ==============================================================================
+# 4. DISPLAY RESULTS
 # ==============================================================================
 col1, col2 = st.columns(2)
 
@@ -116,11 +156,9 @@ with col2:
     y_line = np.linspace(0, 5, 30)
     X_grid, Y_grid = np.meshgrid(x_line, y_line)
     
-    # Flatten grid for model prediction
     grid_features = np.column_stack((X_grid.ravel(), Y_grid.ravel()))
     Z_grid = trained_models[selected_pathogen].predict(grid_features).reshape(X_grid.shape)
     
-    # Create 3D Surface
     fig_3d = go.Figure()
     
     # Base Surface
