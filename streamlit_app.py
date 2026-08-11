@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Antimicrobial Activity Predictor", layout="wide")
 
 st.title("🔬 Antimicrobial Activity Metamodel Predictor")
-st.write("Predicting individual pathogen MIC values based on Gamma Irradiation Dose and Extraction Day.")
+st.write("Predicting phytochemical properties and individual pathogen MIC values based on Gamma Irradiation Dose and Extraction Day.")
 
 # ==============================================================================
 # 1. CORE DATASET & METAMODEL ENGINE (CACHED)
@@ -80,19 +80,21 @@ input_dose = st.sidebar.slider("Gamma Dose (kGy)", min_value=0.0, max_value=5.0,
 features = np.array([[input_day, input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-    predictions[factor] = float(model.predict(features)[0])
+    predictions[factor] = float(model.predict(features))
 
 # ==============================================================================
 # 3. DISPLAY RESULTS
 # ==============================================================================
-col1, col2 = st.columns([1, 2])
+col1, col2 = st.columns()
 
 with col1:
     st.subheader("📊 Phytochemical Metrics")
-    st.metric("TPC", f"{predictions['TPC']:.2f}")
-    st.metric("ITC", f"{predictions['ITC']:.2f}")
-    st.metric("TFC", f"{predictions['TFC']:.2f}")
-    st.metric("DPPH (%)", f"{predictions['DPPH']:.2f}")
+    
+    # Updated metrics with full descriptive titles and precise units
+    st.metric("Total Phenolic Content (TPC)", f"{predictions['TPC']:.2f} µg/mL")
+    st.metric("Total Flavonoid Content (TFC)", f"{predictions['TFC']:.2f} µg/mL")
+    st.metric("Isothiocyanate Content (ITC)", f"{predictions['ITC']:.2f} %")
+    st.metric("DPPH Radical Scavenging Activity", f"{predictions['DPPH']:.2f} %")
 
 with col2:
     st.subheader("🧫 Predicted MIC Values (ppm)")
@@ -105,10 +107,10 @@ with col2:
     
     pathogen_mic = {p: predictions[p] for p in pathogens}
     
-    # Create visual bar chart for the pathogens
+    # Create visual bar chart for the pathogens with italicized scientific labels
     fig = go.Figure(go.Bar(
         x=list(pathogen_mic.values()),
-        y=list(pathogen_mic.keys()),
+        y=[f"<i>{p}</i>" for p in pathogen_mic.keys()],
         orientation='h',
         marker=dict(color='crimson')
     ))
@@ -120,6 +122,6 @@ with col2:
     )
     st.plotly_chart(fig, use_container_width=True)
     
-    # Display as a table
-    df_mic = pd.DataFrame(list(pathogen_mic.items()), columns=['Pathogen / Strain', 'Predicted MIC (ppm)'])
+    # Display as a clean data table
+    df_mic = pd.DataFrame(list(pathogen_mic.items()), columns=['Microbial Strain', 'Predicted MIC (ppm)'])
     st.dataframe(df_mic, hide_index=True)
