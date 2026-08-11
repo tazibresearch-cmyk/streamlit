@@ -80,7 +80,8 @@ input_dose = st.sidebar.slider("Gamma Dose (kGy)", min_value=0.0, max_value=5.0,
 features = np.array([[input_day, input_dose]])
 predictions = {}
 for factor, model in trained_models.items():
-    predictions[factor] = float(model.predict(features))
+     # Highlighted fix: added [0] to extract the scalar value from the array
+    predictions[factor] = float(model.predict(features)[0])
 
 # ==============================================================================
 # 3. DISPLAY RESULTS
